@@ -1,0 +1,12 @@
+"""Build a single-file copy for offline viewing. No dependencies or network needed."""
+from pathlib import Path
+root=Path(__file__).resolve().parent
+html=(root/'index.html').read_text()
+html=html.replace('<link rel="stylesheet" href="style.css">','<style>'+(root/'style.css').read_text()+'</style>')
+for file in ('config.js','content.js','app.js'):
+    # Protect the script boundary, including future text edits.
+    source=(root/file).read_text().replace('</script','<\\/script')
+    html=html.replace(f'<script src="{file}"></script>','<script>'+source+'</script>')
+out=root/'dist';out.mkdir(exist_ok=True)
+(out/'Важное-с-собой.html').write_text(html)
+print('Built:',out/'Важное-с-собой.html')

@@ -1,0 +1,16 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+let rows=[['ФИО','Комната','Гостиница','Почта'],['Тестова Анна Первая','101','Бета','never-return@example.test'],['Тестова Анна Вторая','102','Бета','never-return@example.test'],['Соседова Вера Третья','102','Бета','never-return@example.test'],['Другая Вера Четвёртая','102','Гамма','never-return@example.test']];
+const context={Utilities:{DigestAlgorithm:{SHA_256:'sha256'},computeDigest:(_,s)=>crypto.createHash('sha256').update(s).digest(),base64EncodeWebSafe:b=>Buffer.from(b).toString('base64url')},SpreadsheetApp:{openById:()=>({getSheetByName:()=>({getDataRange:()=>({getDisplayValues:()=>rows})})})}};
+vm.createContext(context);vm.runInContext(fs.readFileSync('integration/Code.gs','utf8'),context);
+let result=context.lookup_({surname:'Тестова'});assert.equal(result.matches.length,2);
+let id=result.matches[1].id;result=context.lookup_({surname:'Тестова',id});assert.deepEqual(JSON.parse(JSON.stringify(result.roommates)),[{name:'Соседова Вера Третья'}]);assert(!JSON.stringify(result).includes('@'));
+rows[3][0]='Обновлённая Вера Третья';result=context.lookup_({surname:'Тестова',id});assert.equal(result.roommates[0].name,'Обновлённая Вера Третья');
+rows.push(['Новая Анна Пятая','102','Бета','hidden@example.test']);assert.equal(context.lookup_({surname:'Тестова',id}).roommates.length,2);
+assert.equal(context.lookup_({surname:'Тестова',id:'invalid'}).error,'refresh_search');
+assert.equal(context.lookup_({surname:'Неттакой'}).matches.length,0);
+assert.equal(context.lookup_({surname:''}).error,'invalid_query');
+rows=[['Фамилия','Имя','Отчество','Соседи','Почта'],['Тёстова','Анна','Первая','Соседова Вера\nДругая Анна','hidden@example.test']];
+result=context.lookup_({surname:'тестова'});assert.equal(result.matches[0].name,'Тёстова Анна Первая');id=result.matches[0].id;
+assert.equal(context.lookup_({surname:'ТЁСТОВА',id}).roommates.length,2);
+rows=[['Без заголовков']];assert.throws(()=>context.lookup_({surname:'Тестова'}));
+console.log('PASS: exact surname, ё/е, duplicates, separate hotels, fresh edits and appended rows, split names, multiline roommate names, no email leakage, invalid ID and missing schema.');
