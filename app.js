@@ -76,16 +76,30 @@ async function beginJourney(){
  if(state.surveySaved===fingerprint){route('home');return;}
  if(!state.surveyToken)state.surveyToken=crypto.randomUUID?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('');save();
  const endpoint=window.FORUM_CONFIG?.analyticsEndpoint;
- const showError=()=>{if(view!=='survey')return;const status=$('#survey-status');if(status)status.textContent='Не удалось отправить ответы. Они сохранены на этом устройстве. Попробуйте отправить ещё раз.';};
+ const showError=error=>{
+  if(view!=='survey')return;
+  const code=error?.name==='AbortError'?'timeout':error?.message||'connection';
+  const messages={
+   unavailable:'Скрипт Google ответил, но не смог записать ответы в таблицу.',
+   survey_columns:'Скрипт не может записать ответы: структура листа для анкет отличается от ожидаемой.',
+   invalid_request:'Скрипт не принял формат анкеты. Нужно проверить опубликованную версию скрипта.',
+   non_json:'Вместо подтверждения записи Google вернул страницу. Нужно проверить доступ к веб-приложению.',
+   timeout:'Сервер Google не успел подтвердить запись. Можно повторить отправку — дубль ответа не появится.',
+   connection:'Браузер не получил ответ сервера Google. Нужно проверить доступ к веб-приложению.'
+  };
+  const diagnostic=Object.hasOwn(messages,code)?code:code.startsWith('http_')?code:'connection';
+  state.surveyLastError=diagnostic;save();
+  const status=$('#survey-status');if(status)status.textContent='Не удалось отправить ответы. '+(messages[diagnostic]||'Сервер вернул ошибку HTTP '+diagnostic.slice(5)+'.')+' Ответы сохранены на этом устройстве. Код: '+diagnostic+'.';
+ };
  if(!endpoint){state.surveyPreview=true;save();route('home');toast('Ответы сохранены на устройстве. Открыт режим просмотра.');return;}
  sendingSurvey=true;const button=$('#survey-submit');button.disabled=true;button.textContent='Сохраняем ответы…';$('#survey-status').textContent='Отправляем ваши ответы до начала игры…';
  form.querySelectorAll('input,textarea').forEach(el=>el.disabled=true);$('#need').disabled=true;document.querySelectorAll('[data-item]').forEach(el=>el.disabled=true);
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
  try{
   const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify({action:'survey',...answers,token:state.surveyToken}),credentials:'omit',keepalive:true,signal:controller.signal});
-  if(!response.ok)throw Error('network');const result=await response.json();if(result.ok!==true)throw Error('not_saved');
+  if(!response.ok)throw Error('http_'+response.status);let result;try{result=JSON.parse(await response.text());}catch{throw Error('non_json');}if(result.ok!==true)throw Error(result.error||'unavailable');
   state.surveySaved=fingerprint;save();if(view==='survey'){route('home');toast('Ответы записаны. Выберите игру или размещение.');}
- }catch{showError();}
+ }catch(error){showError(error);}
  finally{clearTimeout(timer);sendingSurvey=false;if(view==='survey'){const form=$('#survey-form');form?.querySelectorAll('input,textarea').forEach(el=>el.disabled=false);if($('#need'))$('#need').disabled=false;document.querySelectorAll('[data-item]').forEach(el=>el.disabled=false);const button=$('#survey-submit');if(button){button.disabled=false;button.innerHTML='Отправить ещё раз →';}}}
 }
 
