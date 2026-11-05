@@ -8,8 +8,10 @@ const data={action:'survey',token:'a'.repeat(24),need:'Времени и сил'
 assert.deepEqual(send(data),{ok:true});assert.equal(rows.length,2);assert.equal(rows[1][3],data.question);assert.equal(flushes,1);
 assert.deepEqual(send(data),{ok:true});assert.equal(rows.length,2);
 assert.deepEqual(send({...data,question:'Изменённый вопрос'}),{ok:true});assert.equal(rows[1][3],'Изменённый вопрос');
-assert(send({...data,preparation:6}).error);assert(send({...data,question:'   '}).error);assert(send({...data,question:'x'.repeat(3001)}).error);assert(send({...data,need:'Другое'}).error);
+assert(send({...data,preparation:7}).error);assert(send({...data,question:'   '}).error);assert(send({...data,question:'x'.repeat(3001)}).error);assert(send({...data,need:'Другое'}).error);
 send({...data,token:'b'.repeat(24),question:'=IMPORTXML("url")'});assert.equal(rows[2][3][0],"'");
+assert(send({...data,preparation:6}).error);assert(send({...data,preparation:6,preparationOther:'   '}).error);assert(send({...data,preparation:6,preparationOther:'x'.repeat(1501)}).error);
+assert.deepEqual(send({...data,preparation:6,preparationOther:'Обсудила тему с детьми заранее',question:'-'}),{ok:true});assert.equal(rows[1][2],'Свой вариант: Обсудила тему с детьми заранее');assert.equal(rows[1][3],"'-");
 const original=rows[0][1];rows[0][1]='Пользовательский заголовок';assert.equal(send(data).error,'survey_columns');assert.equal(rows[0][1],'Пользовательский заголовок');rows[0][1]=original;
 failWrite=true;assert.equal(send({...data,token:'c'.repeat(24)}).error,'unavailable');assert(!held);assert.equal(rows.length,3);
 assert(!JSON.stringify(rows).includes('ФИО'));assert(!JSON.stringify(rows).includes('email'));

@@ -143,11 +143,13 @@ const PREPARATION_OPTIONS = [
  'Просмотрел(а) материалы в день проведения занятия и выбрал(а) необходимое.',
  'Ознакомился(лась) с материалами непосредственно перед началом занятия или уже в процессе его проведения.',
  'Подготовил(а) собственный вариант занятия, практически не используя предложенный сценарий.',
- 'В настоящее время лично не провожу занятия «Разговоры о важном».'
+ 'В настоящее время лично не провожу занятия «Разговоры о важном».',
+ 'Свой вариант'
 ];
 const SURVEY_HEADERS = ['Код ответа','Чего не хватает','Подготовка к занятию','Вопрос экспертам'];
 function recordSurvey_(data) {
   if(!NEED_CATEGORIES.includes(data.need)||!Number.isInteger(data.preparation)||data.preparation<0||data.preparation>=PREPARATION_OPTIONS.length||typeof data.question!=='string'||!data.question.trim()||data.question.length>3000||!/^[-a-zA-Z0-9]{20,64}$/.test(data.token||''))return json_({error:'invalid_request'});
+  if(data.preparation===6&&(typeof data.preparationOther!=='string'||!data.preparationOther.trim()||data.preparationOther.length>1500))return json_({error:'invalid_request'});
   let lock,held=false;
   try {
     lock=LockService.getScriptLock();lock.waitLock(10000);held=true;
@@ -159,7 +161,8 @@ function recordSurvey_(data) {
     if(!rows[0]||!SURVEY_HEADERS.every((name,i)=>rows[0][i]===name))return json_({error:'survey_columns'});
     const question=data.question.trim();
     const safeQuestion=/^\s*[=+@-]/.test(question)?"'"+question:question;
-    const row=[data.token,data.need,PREPARATION_OPTIONS[data.preparation],safeQuestion];
+    const preparation=data.preparation===6?'Свой вариант: '+data.preparationOther.trim():PREPARATION_OPTIONS[data.preparation];
+    const row=[data.token,data.need,preparation,safeQuestion];
     const index=rows.findIndex((r,i)=>i>0&&String(r[0])===data.token);
     if(index>0)sheet.getRange(index+1,1,1,4).setValues([row]);
     else sheet.appendRow(row);
