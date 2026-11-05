@@ -67,3 +67,27 @@ function lookup_(params) {
   else if(self.roommate)roommates=self.roommate.split(/[;\n]+/).map(clean_).filter(Boolean).filter(n=>norm_(n)!==norm_(self.name)).map(name=>({name}));
   return {status:'room',self:{name:self.name},roommates,updatedAt:new Date().toISOString()};
 }
+
+/** Анонимные счётчики: только категория и число ответов, без отдельных строк людей. */
+const NEED_CATEGORIES = ['Свежего подхода','Времени и сил','Участия ребят','Уверенности в разговорах','Поддержки коллег'];
+function doPost(e) {
+  let lock;
+  try {
+    const raw=e&&e.postData&&e.postData.contents||'';
+    if(raw.length>1000)return json_({error:'invalid_request'});
+    const data=JSON.parse(raw);
+    if(data.action!=='need'||!NEED_CATEGORIES.includes(data.need)||!/^[-a-zA-Z0-9]{20,64}$/.test(data.token||''))return json_({error:'invalid_request'});
+    lock=LockService.getScriptLock();lock.waitLock(10000);
+    const cache=CacheService.getScriptCache(),key='need-v1-'+data.token;
+    if(cache.get(key))return json_({ok:true});
+    const book=SpreadsheetApp.openById(HOUSING.spreadsheetId);
+    let sheet=book.getSheetByName('Статистика игры');
+    if(!sheet){sheet=book.insertSheet('Статистика игры');sheet.getRange(1,1,6,2).setValues([['Запрос','Количество ответов'],...NEED_CATEGORIES.map(n=>[n,0])]);}
+    const values=sheet.getDataRange().getValues();
+    let index=values.findIndex(row=>row[0]===data.need);
+    if(index<0){sheet.appendRow([data.need,1]);}else{sheet.getRange(index+1,2).setValue((Number(values[index][1])||0)+1);}
+    cache.put(key,'counted',21600);
+    return json_({ok:true});
+  } catch (_) { return json_({error:'unavailable'}); }
+  finally {if(lock)lock.releaseLock();}
+}

@@ -1,0 +1,14 @@
+const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
+let values=[],cache=new Map(),calls=0,locked=false;
+const sheet={getRange:(row,col)=>({setValues:v=>{values=v;},setValue:v=>{values[row-1][col-1]=v;}}),getDataRange:()=>({getValues:()=>values}),appendRow:r=>values.push(r)};
+const c={ContentService:{MimeType:{JSON:'json'},createTextOutput:text=>({text,setMimeType(){return this;}})},SpreadsheetApp:{openById:()=>({getSheetByName:()=>values.length?sheet:null,insertSheet:()=>{calls++;return sheet;}})},CacheService:{getScriptCache:()=>({get:k=>cache.get(k),put:(k,v)=>cache.set(k,v)})},LockService:{getScriptLock:()=>({waitLock:()=>{assert(!locked);locked=true;},releaseLock:()=>locked=false})}};
+vm.createContext(c);vm.runInContext(fs.readFileSync('integration/Code.gs','utf8'),c);
+const send=data=>JSON.parse(c.doPost({postData:{contents:JSON.stringify(data)}}).text);
+assert.deepEqual(send({action:'need',need:'Времени и сил',token:'a'.repeat(24)}),{ok:true});
+assert.equal(values.find(r=>r[0]==='Времени и сил')[1],1);
+send({action:'need',need:'Времени и сил',token:'a'.repeat(24)});assert.equal(values.find(r=>r[0]==='Времени и сил')[1],1);
+send({action:'need',need:'Времени и сил',token:'b'.repeat(24)});assert.equal(values.find(r=>r[0]==='Времени и сил')[1],2);
+assert(send({action:'need',need:'Имя Фамилия',token:'c'.repeat(24)}).error);
+assert(send({action:'need',need:'Времени и сил',token:'bad'}).error);
+assert.equal(values.length,6);assert(!JSON.stringify(values).includes('a'.repeat(24)));assert(!locked);assert.equal(calls,1);
+console.log('PASS: aggregate-only counters, whitelist, duplicate suppression, no stored identifiers, lock release.');

@@ -36,7 +36,7 @@ with sync_playwright() as p:
   page.locator('#reflection-note').fill(f'Мысль из эпизода {scene+1}')
   if scene==2:page.screenshot(path=str(OUT/'03-story.png'),full_page=True)
   page.locator('#next').click()
- assert page.locator('.postcard').is_visible()
+ assert page.locator('.postcard-preview').is_visible()
  assert page.locator('#custom-question-field').is_hidden()
  page.select_option('#prompt','5');assert page.locator('#custom-question-field').is_visible()
  page.fill('#custom-question','Как дать тихим ребятам время?')
@@ -54,7 +54,7 @@ with sync_playwright() as p:
  # Unconfigured housing must not invent participants.
  page.locator('.housing-link').first.click()
  assert page.locator('#housing-search').is_disabled()
- assert 'Список размещения готовится' in page.locator('main').inner_text()
+ assert 'Список размещения скоро появится' in page.locator('main').inner_text()
  # Connected endpoint: only matches, choosing exact name, renewed request, no local PII.
  page.evaluate("window.FORUM_CONFIG.housingEndpoint='https://housing.example/lookup'")
  page.locator('#back-home').click();page.locator('.housing-link').first.click()
