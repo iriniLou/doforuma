@@ -6,10 +6,7 @@ with sync_playwright() as p:
  b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
  ctx=b.new_context(viewport={'width':1280,'height':960},color_scheme='dark',reduced_motion='reduce',accept_downloads=True)
  page=ctx.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
- page.goto('http://127.0.0.1:8000');page.locator('#start').click()
- assert page.locator('.item-icon svg').count()==6
- page.screenshot(path=str(OUT/'items.png'),full_page=True)
- for item in ['compass','lens','pencil']:page.locator(f'[data-item="{item}"]').click()
+ page.goto('http://127.0.0.1:8000')
  calls=[]
  def stats(route):
   payload=json.loads(route.request.post_data);calls.append(payload)
@@ -17,8 +14,12 @@ with sync_playwright() as p:
   route.fulfill(status=200,body='{"ok":true}',headers={'Access-Control-Allow-Origin':'*'},content_type='application/json')
  page.route('https://statistics.example/**',stats)
  page.evaluate("window.FORUM_CONFIG.analyticsEndpoint='https://statistics.example/count'")
- assert page.locator('#stats-consent').count()==0;assert 'Ваш выбор будет анонимно учтён' in page.locator('main').inner_text();page.select_option('#need','Поддержки коллег');page.locator('input[name="preparation"][value="2"]').check();page.fill('#expert-question','Как вовлечь молчащих?');page.locator('#begin').click()
+ assert page.locator('#stats-consent').count()==0;assert 'Ответы будут анонимно учтены' in page.locator('main').inner_text();page.select_option('#need','Поддержки коллег');page.locator('input[name="preparation"][value="2"]').check();page.fill('#expert-question','Как вовлечь молчащих?');page.locator('#survey-submit').click()
  page.wait_for_function("JSON.parse(localStorage.getItem('vazhnoe-game-v1')).surveySaved")
+ page.locator('#start').click()
+ for item in ['compass','lens','pencil']:page.locator(f'[data-item="{item}"]').click()
+ page.screenshot(path=str(OUT/'items.png'),full_page=True)
+ page.locator('#begin-game').click()
  assert len(calls)==1 and calls[0]['need']=='Поддержки коллег'
  for q in page.locator('.question').all():
   assert q.inner_text().strip();assert q.evaluate('(e)=>getComputedStyle(e).color')=='rgb(37, 38, 34)'
@@ -56,7 +57,7 @@ with sync_playwright() as p:
  page.screenshot(path=str(OUT/'housing.png'),full_page=True)
  # Single-file game is self-contained and keeps item drawings.
  offline=b.new_context(reduced_motion='reduce').new_page();requests=[];offline.on('request',lambda r:requests.append(r.url));offline.goto('http://127.0.0.1:8000/dist/Важное-с-собой.html')
- offline.locator('#start').click();assert offline.locator('.item-icon svg').count()==6;assert len(requests)==1,requests
+ offline.locator('[name=preparation][value="5"]').check();offline.fill('#expert-question','Пока нет вопроса');offline.locator('#survey-submit').click();offline.locator('#start').click();assert offline.locator('.item-icon svg').count()==6;assert len(requests)==1,requests
  assert not errors,errors
  print('PASS: visible labels in dark system theme; six SVG icons; anonymous POST without checkbox; complete role inside postcard; tooltip focus; matching SVG/PNG postcard; long text layout; arrival footnote; offline build.')
  b.close()

@@ -12,16 +12,16 @@ with sync_playwright() as p:
  page.goto(BASE)
  page.route('https://survey.example/**',lambda r:r.fulfill(status=200,content_type='application/json',body='{"ok":true}',headers={'Access-Control-Allow-Origin':'*'}))
  page.evaluate("window.FORUM_CONFIG.analyticsEndpoint='https://survey.example/submit'")
+ page.locator('[name=preparation][value="0"]').check();page.fill('#expert-question','Как поддержать инициативу?');page.select_option('#need','Времени и сил');page.locator('#survey-submit').click();page.locator('#start').wait_for()
  page.screenshot(path=str(OUT/'01-desktop.png'),full_page=True)
  page.locator('#start').click()
- assert page.locator('#begin').is_disabled()
+ assert page.locator('#begin-game').is_disabled()
  for item in ['lens','thread','pencil']:page.locator(f'[data-item="{item}"]').click()
  assert page.locator('.item.selected').count()==3
  page.locator('[data-item="compass"]').click()
  assert page.locator('.item.selected').count()==3
- page.select_option('#need','Времени и сил')
  page.screenshot(path=str(OUT/'02-pack.png'),full_page=True)
- page.locator('input[name="preparation"][value="0"]').check();page.fill('#expert-question','Как поддержать инициативу?');page.locator('#begin').click()
+ page.locator('#begin-game').click()
  # Lens changes the information budget; a fourth question remains unavailable.
  for n in range(3):page.locator(f'[data-question="{n}"]').click()
  assert page.locator('[data-question="3"]').is_disabled()
@@ -86,12 +86,10 @@ with sync_playwright() as p:
  mobile=phone.new_page();mobile.on('pageerror',lambda e:errors.append(str(e)));mobile.goto(BASE)
  mobile.screenshot(path=str(OUT/'05-mobile-home.png'),full_page=True)
  def no_overflow():assert mobile.evaluate('document.documentElement.scrollWidth <= window.innerWidth'),mobile.evaluate('document.documentElement.scrollWidth')
- no_overflow();mobile.locator('#start').click()
+ no_overflow();mobile.locator('[name=preparation][value="5"]').check();mobile.fill('#expert-question','Пока нет вопроса');mobile.locator('#survey-submit').click();mobile.locator('#start').click()
  for item in ['compass','thermos','folder']:mobile.locator(f'[data-item="{item}"]').click()
  no_overflow();mobile.screenshot(path=str(OUT/'06-mobile-pack.png'),full_page=True)
- mobile.route('https://survey.example/**',lambda r:r.fulfill(status=200,content_type='application/json',body='{"ok":true}',headers={'Access-Control-Allow-Origin':'*'}))
- mobile.evaluate("window.FORUM_CONFIG.analyticsEndpoint='https://survey.example/submit'")
- mobile.locator('input[name="preparation"][value="5"]').check();mobile.fill('#expert-question','Пока нет вопроса');mobile.locator('#begin').click();mobile.locator('.story').wait_for();assert mobile.locator('[data-choice="3"]').count()==1
+ mobile.locator('#begin-game').click();mobile.locator('.story').wait_for();assert mobile.locator('[data-choice="3"]').count()==1
  no_overflow();mobile.screenshot(path=str(OUT/'07-mobile-story.png'),full_page=True)
  for i in range(6):
   choice=mobile.locator('[data-choice]').last
