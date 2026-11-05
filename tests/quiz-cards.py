@@ -29,11 +29,16 @@ with sync_playwright() as p:
         page.locator('#start').click()
         assert page.evaluate('quizResult('+json.dumps(answers)+','+json.dumps(need)+').id') == role
         assert page.locator('.result-svg').is_visible()
+        card=page.locator('.result-svg')
+        for removed in ['С ЧЕМ ЕДЕМ НА ФОРУМ','В первом опросе','Шуточный тест','irinilou.github.io']:
+            assert removed not in card.text_content(),removed
+        assert card.locator('image').count()==1
         with page.expect_download() as download:
             page.locator('#download').click()
         target=OUT / (role+'.png')
         download.value.save_as(str(target))
-        assert target.stat().st_size>20000
+        assert target.stat().st_size>100000
+        assert page.evaluate('ensureMascot('+json.dumps(role)+').then(src=>src.startsWith("data:image/png;base64,"))')
         assert target.read_bytes()[:8]==b'\x89PNG\r\n\x1a\n'
     # Standalone build embeds art, styles, logic and content; no asset HTTP requests.
     standalone=ctx.new_page()
@@ -45,6 +50,11 @@ with sync_playwright() as p:
     for answer in [0,0,0,1,0]:
         standalone.locator('[data-answer="'+str(answer)+'"]').click()
     assert 'Педагог-подзарядка' in standalone.locator('.result-intro').inner_text()
+    assert standalone.locator('.result-svg image').get_attribute('href').startswith('data:image/png;base64,')
+    with standalone.expect_download() as download:
+        standalone.locator('#download').click()
+    download.value.save_as(str(OUT/'standalone.png'))
+    assert (OUT/'standalone.png').stat().st_size>100000
     # Visual contact sheet for inspection of all six original illustrations.
     art=page.evaluate('QUIZ.characters.map(r=>({title:r.title,color:r.color,svg:mascotSvg(r.id,320)}))')
     gallery=ctx.new_page()

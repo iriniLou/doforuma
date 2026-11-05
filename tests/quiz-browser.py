@@ -22,6 +22,7 @@ with sync_playwright() as p:
  page.select_option('#need','Времени и сил');page.locator('[name=preparation][value="6"]').check();page.fill('#preparation-other','Обсудила тему с ребятами');page.fill('#expert-question','-');page.locator('#survey-submit').click();page.locator('#start').wait_for()
  assert len(calls)==1
  assert 'чемодан' not in page.locator('main').inner_text().lower()
+ assert 'Без оценок, честно' not in page.locator('main').inner_text()
  page.screenshot(path=str(OUT/'01-home.png'),full_page=True)
  page.locator('.housing-link').first.click();page.fill('#surname','Тестовая');page.locator('#housing-search').click();page.get_by_role('button',name='Тестовая Анна').click();page.get_by_text('Тестовая Вера',exact=False).wait_for()
  page.locator('#return-game').click();page.locator('#start').click()
@@ -31,7 +32,9 @@ with sync_playwright() as p:
   if i==3:page.screenshot(path=str(OUT/'02-question.png'),full_page=True)
   page.locator(f'[data-answer="{answer}"]').click()
  assert 'Педагог-подзарядка' in page.locator('.result-intro').inner_text()
- assert 'Времени и сил' in page.locator('.result-svg').text_content()
+ card_text=page.locator('.result-svg').text_content()
+ for removed in ['С ЧЕМ ЕДЕМ НА ФОРУМ','В первом опросе','Времени и сил','Шуточный тест','irinilou.github.io']:
+  assert removed not in card_text,removed
  with page.expect_download() as d:page.locator('#download').click()
  d.value.save_as(str(OUT/'03-card.png'));assert (OUT/'03-card.png').stat().st_size>20000
  page.screenshot(path=str(OUT/'04-result.png'),full_page=True)
@@ -57,5 +60,5 @@ with sync_playwright() as p:
  for path in ['app.js','content.js','visuals.js','style.css','dist/Важное-с-собой.html']:
   assert page.request.get('http://127.0.0.1:8000/'+path).status==404,path
  assert not errors,errors
- print('PASS: preserved survey and housing; five-question journey; initial need in result; PNG export; two runs with different cards; no duplicate survey; safe legacy migration; phone/320px layout; old game URLs return 404.')
+ print('PASS: preserved survey and housing; five-question journey; clean card text; illustrated PNG export; two runs with different cards; no duplicate survey; safe legacy migration; phone/320px layout; old game URLs return 404.')
  b.close()

@@ -1,12 +1,31 @@
-window.mascotSvg = function(id, size=340){
- const ink='#32312e', shapes={
- spark:`<path d="m89 121-6-81 71 48m52-1 70-49-3 91" fill="#f58c51"/><path d="m99 96-4-35 34 26m103 0 31-28-4 42" fill="#ffd0b6"/><path d="M81 144q-5-70 96-76 98 0 102 78 1 82-101 104Q78 222 81 144" fill="#f9a565"/><path d="m87 153 89 40 98-40q-6 73-96 90-79-17-91-90" fill="#fff6e6"/><path d="M122 138q12-12 24 0m64-1q12-12 24 0"/><path d="m168 166 22 0-11 12z" fill="${ink}"/><path d="M163 185q16 17 32 0"/><path d="M100 230q78 20 150-5l19 89H81z" fill="#e86442"/><path d="m112 244 53 63m71-65-54 65"/><path d="M102 260q28-7 52 21m99-18q-22-4-39 18" stroke-width="21" stroke="#f9a565"/><path d="m182 223 13 28 32 5-23 22 5 31-28-14-28 14 6-31-23-22 32-5z" fill="#ffcf57"/><path d="m185 238-7 30 15 8" stroke="#d69b27"/>`,
- guide:`<path d="M90 110 89 49l65 34m59-1 62-35-8 66" fill="#9d7861"/><ellipse cx="180" cy="177" rx="103" ry="115" fill="#b99674"/><path d="M86 164q-20-72 50-74 38 0 44 40 16-46 53-39 61 3 39 77-17 70-92 68-75 0-94-72" fill="#fff2d5"/><circle cx="137" cy="144" r="37" fill="#fffaf1"/><circle cx="224" cy="144" r="37" fill="#fffaf1"/><path d="M173 141h14m-86-7-18-6m178 8 17-7"/><circle cx="142" cy="147" r="9" fill="${ink}"/><circle cx="220" cy="147" r="9" fill="${ink}"/><circle cx="145" cy="144" r="3" fill="white" stroke="none"/><circle cx="223" cy="144" r="3" fill="white" stroke="none"/><path d="m170 176 20 0-10 17z" fill="#edac3b"/><path d="M137 213q43 16 87-1"/><path d="M104 241h149v79H104z" fill="#68b5ef"/><path d="M120 246v74m17-59h82m-82 19h59"/><path d="m218 276 8 8 15-20" stroke="#327b65" stroke-width="4"/><path d="M86 250q-12 33 31 42m157-42q12 33-31 42" fill="#b99674"/>`,
- calm:`<path d="M101 112q-41-9-28-42 16-28 42 10m137 28q38-13 26-41-18-27-40 10" fill="#b78c65"/><path d="M82 143q0-65 96-65 103-1 103 68v83q-14 62-101 62-84 0-98-62z" fill="#c7a17a"/><ellipse cx="181" cy="181" rx="76" ry="52" fill="#dfbb93"/><path d="M116 138q13 11 26 0m76 0q13 11 26 0"/><path d="M166 168q15-8 30 0-2 17-15 17t-15-17" fill="#7a5b48"/><path d="M181 184v14m-16 4q16 11 32 0"/><path d="M117 257q63 23 124 0l6 66H109z" fill="#8dbb89"/><path d="M150 263h63l-5 46q-23 14-51 0z" fill="#fff4d4"/><path d="M215 271q31-2 20 24-7 8-22 5"/><path d="M140 274q-28-6-32 17m111-17q28-6 32 17" stroke="#c7a17a" stroke-width="19"/><path d="M173 244q-9-12 1-23m18 23q-7-12 2-23" stroke="#e8d8c3"/><path d="m159 79 20-25 16 25" fill="#8dbb89"/><path d="m179 76 0-15"/>`,
- inventor:`<path d="M90 114q-41-62-9-73 25-11 58 48m83 1q33-58 58-47 32 17-8 71" fill="#92959d"/><path d="m94 89-8-26 29 26m132 1 25-26-8 31" fill="#cfbdce"/><ellipse cx="180" cy="152" rx="103" ry="85" fill="#b8bcc2"/><path d="M87 137q43-42 92 1 49-40 96-2l-17 46q-44 19-80-5-34 26-78 6z" fill="#565962"/><ellipse cx="137" cy="147" rx="19" ry="22" fill="#fff8eb"/><ellipse cx="222" cy="147" rx="19" ry="22" fill="#fff8eb"/><circle cx="143" cy="149" r="7" fill="${ink}"/><circle cx="217" cy="149" r="7" fill="${ink}"/><path d="m168 179 24 0-12 13z" fill="${ink}"/><path d="M165 199q17 13 32-1"/><path d="M109 224q73 19 144 0l11 99H97z" fill="#9b86ce"/><path d="m164 231 17 34 16-34" fill="#fff9e8"/><path d="M112 277q39-14 65 3m71-1q-25-8-45 7" stroke="#b8bcc2" stroke-width="23"/><rect x="142" y="278" width="74" height="42" rx="6" fill="#ffca58"/><path d="m157 282 0 34m46-34v34"/><path d="M264 53q-19-6-18-23 1-25 25-24 27 0 27 24-1 15-20 23v15h-14z" fill="#ffdc72"/><path d="M264 59h17m-16 8h15m-41-43-10-3m77-3 10-6M270 1v-8"/>`,
- connector:`<path d="M89 154q0-87 91-87 97 0 97 87l-12 109q-20 56-85 56-62 0-82-56z" fill="#4a5967"/><path d="M112 153q-8-47 29-48 30 0 39 38 10-38 39-38 36 0 30 49l-4 91q-11 49-65 49-53 0-65-49z" fill="#fff7e6"/><ellipse cx="144" cy="154" rx="7" ry="10" fill="${ink}"/><ellipse cx="219" cy="154" rx="7" ry="10" fill="${ink}"/><path d="m162 184 38 0-19 19z" fill="#f1b44b"/><ellipse cx="128" cy="183" rx="13" ry="7" fill="#f4b3ab" stroke="none"/><ellipse cx="234" cy="183" rx="13" ry="7" fill="#f4b3ab" stroke="none"/><path d="M95 226q88 36 171-2l-1 29q-85 30-169 0z" fill="#7ed5ac"/><path d="m210 246 21 46 27-14-20-39" fill="#7ed5ac"/><path d="M94 239 57 272q-15 14-23 1m230-34 38 34q15 13 23 0" stroke="#4a5967" stroke-width="19"/><path d="M121 313q-28-3-34 13h67m62-13q27-3 34 13h-65" fill="#f1b44b"/><path d="m312 113 11-24 11 24 25 4-18 18 4 26-22-13-22 13 5-26-19-18z" fill="#ffcf57"/>`,
- care:`<path d="m87 122 0-70 67 40m54 0 68-40-2 73" fill="#d6a172"/><path d="m100 99-1-25 29 24m107 0 28-24-1 29" fill="#efb5b9"/><path d="M78 149q0-66 101-66 105 0 105 68-3 92-105 99-103-12-101-101" fill="#e4b58c"/><path d="m160 86 8 28m28-29-8 29" stroke="#bc8559" stroke-width="8"/><path d="M118 145q14 13 28 0m64 0q14 13 28 0"/><path d="m166 176 25 0-12 11z" fill="#a05f64"/><path d="M179 187v11m-18 2q18 17 35 0M98 180l-34-8m37 24-36 3m196-17 35-10m-35 26 35 3"/><path d="M111 236q67 14 136 0l16 88H96z" fill="#d786aa"/><path d="M149 267h65l-3 45q-27 12-57 0z" fill="#fff9e8"/><path d="M216 275q29-1 21 20-8 10-23 6"/><path d="M105 284q26-15 48-2m95 2q-17-15-35-2" stroke="#e4b58c" stroke-width="22"/><path d="M172 248q-6-13 2-25m19 24q-6-13 2-25" stroke="#e4d0d7"/><rect x="272" y="48" width="57" height="34" rx="7" fill="#8bd5a9"/><path d="M329 57h8v16h-8m-41-15v15m12-15v15m12-15v15"/>`
- };
- const decor=`<path d="m37 95 4-12 4 12 12 4-12 4-4 12-4-12-12-4z" fill="#ffcc5b"/><path d="M308 211l9-9m0 18 12-1M42 225l-8-8m0 21-13-1" stroke="#8b9c8b"/><ellipse cx="181" cy="326" rx="119" ry="8" fill="#252622" opacity=".08" stroke="none"/>`;
- return `<svg xmlns="http://www.w3.org/2000/svg" class="mascot" width="${size}" height="${size}" viewBox="0 0 360 340" fill="none" stroke="${ink}" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Нарисованный персонаж: ${window.QUIZ.characters.find(c=>c.id===id)?.animal||'педагог'}">${decor}${shapes[id]||shapes.calm}</svg>`;
+// Generated gouache illustrations; each role loads only its own local image.
+window.MASCOT_ASSETS = {
+ spark:"assets/mascots/spark.png",
+ guide:"assets/mascots/guide.png",
+ calm:"assets/mascots/calm.png",
+ inventor:"assets/mascots/inventor.png",
+ connector:"assets/mascots/connector.png",
+ care:"assets/mascots/care.png"
 };
+(() => {
+ const embedded={},pending={};
+ window.ensureMascot = async function(id){
+  if(!window.MASCOT_ASSETS[id])id='calm';
+  const src=window.MASCOT_ASSETS[id];
+  if(src.startsWith('data:'))return src;
+  if(embedded[id])return embedded[id];
+  if(!pending[id])pending[id]=(async()=>{
+   const response=await fetch(src);if(!response.ok)throw Error('illustration');
+   const blob=await response.blob();
+   const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob);});
+   embedded[id]=data;return data;
+  })().finally(()=>{delete pending[id];});
+  return pending[id];
+ };
+ window.mascotSvg = function(id,size=340){
+  if(!window.MASCOT_ASSETS[id])id='calm';
+  const src=embedded[id]||window.MASCOT_ASSETS[id];
+  const animal=window.QUIZ.characters.find(c=>c.id===id)?.animal||'педагог';
+  return `<svg xmlns="http://www.w3.org/2000/svg" class="mascot" width="${size}" height="${size}" viewBox="0 0 600 600" role="img" aria-label="Нарисованный персонаж: ${animal}"><image href="${src}" x="12" y="12" width="576" height="576" preserveAspectRatio="xMidYMid meet"/></svg>`;
+ };
+})();
