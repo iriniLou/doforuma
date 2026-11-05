@@ -5,6 +5,7 @@ OUT=Path('/tmp/forum-review');OUT.mkdir(exist_ok=True)
 with sync_playwright() as p:
  b=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
  ctx=b.new_context(viewport={'width':1280,'height':960},color_scheme='dark',reduced_motion='reduce',accept_downloads=True)
+ ctx.route('**/config.js*',lambda r:r.fulfill(status=200,body="window.FORUM_CONFIG={housingEndpoint:'',analyticsEndpoint:'',contactUrl:''};",content_type='application/javascript'))
  page=ctx.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
  page.goto('http://127.0.0.1:8000')
  calls=[]
@@ -56,8 +57,8 @@ with sync_playwright() as p:
  assert 'после подключения таблицы' not in page.locator('main').inner_text()
  page.screenshot(path=str(OUT/'housing.png'),full_page=True)
  # Single-file game is self-contained and keeps item drawings.
- offline=b.new_context(reduced_motion='reduce').new_page();requests=[];offline.on('request',lambda r:requests.append(r.url));offline.goto('http://127.0.0.1:8000/dist/Важное-с-собой.html')
- offline.locator('[name=preparation][value="5"]').check();offline.fill('#expert-question','Пока нет вопроса');offline.locator('#survey-submit').click();offline.locator('#start').click();assert offline.locator('.item-icon svg').count()==6;assert len(requests)==1,requests
+ offline=b.new_context(reduced_motion='reduce').new_page();requests=[];offline.route('https://script.google.com/**',lambda r:r.fulfill(status=200,body='{"ok":true}',content_type='application/json',headers={'Access-Control-Allow-Origin':'*'}));offline.on('request',lambda r:requests.append(r.url));offline.goto('http://127.0.0.1:8000/dist/Важное-с-собой.html')
+ offline.locator('[name=preparation][value="5"]').check();offline.fill('#expert-question','Пока нет вопроса');offline.locator('#survey-submit').click();offline.locator('#start').click();assert offline.locator('.item-icon svg').count()==6;assert len(requests)==2 and 'script.google.com' in requests[1],requests
  assert not errors,errors
  print('PASS: visible labels in dark system theme; six SVG icons; anonymous POST without checkbox; complete role inside postcard; tooltip focus; matching SVG/PNG postcard; long text layout; arrival footnote; offline build.')
  b.close()

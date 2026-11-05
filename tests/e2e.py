@@ -7,6 +7,7 @@ OUT=Path('/tmp/forum-checks');OUT.mkdir(exist_ok=True)
 with sync_playwright() as p:
  browser=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
  context=browser.new_context(viewport={'width':1440,'height':1000},accept_downloads=True,reduced_motion='reduce')
+ context.route('**/config.js*',lambda r:r.fulfill(status=200,body="window.FORUM_CONFIG={housingEndpoint:'',analyticsEndpoint:'',contactUrl:''};",content_type='application/javascript'))
  page=context.new_page();errors=[]
  page.on('pageerror',lambda error:errors.append(str(error)))
  page.goto(BASE)
@@ -83,9 +84,11 @@ with sync_playwright() as p:
  assert page.locator('#housing-search').is_enabled()
  # Small phone screens: no horizontal overflow, game and card remain usable.
  phone=browser.new_context(viewport={'width':390,'height':844},is_mobile=True,has_touch=True,reduced_motion='reduce')
+ phone.route('**/config.js*',lambda r:r.fulfill(status=200,body="window.FORUM_CONFIG={housingEndpoint:'',analyticsEndpoint:'',contactUrl:''};",content_type='application/javascript'))
  mobile=phone.new_page();mobile.on('pageerror',lambda e:errors.append(str(e)));mobile.goto(BASE)
  mobile.screenshot(path=str(OUT/'05-mobile-home.png'),full_page=True)
  def no_overflow():assert mobile.evaluate('document.documentElement.scrollWidth <= window.innerWidth'),mobile.evaluate('document.documentElement.scrollWidth')
+ mobile.route('https://script.google.com/**',lambda r:r.fulfill(status=200,body='{"ok":true}',content_type='application/json',headers={'Access-Control-Allow-Origin':'*'}))
  no_overflow();mobile.locator('[name=preparation][value="5"]').check();mobile.fill('#expert-question','Пока нет вопроса');mobile.locator('#survey-submit').click();mobile.locator('#start').click()
  for item in ['compass','thermos','folder']:mobile.locator(f'[data-item="{item}"]').click()
  no_overflow();mobile.screenshot(path=str(OUT/'06-mobile-pack.png'),full_page=True)

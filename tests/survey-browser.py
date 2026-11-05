@@ -37,6 +37,7 @@ with sync_playwright() as p:
  page.locator('#begin-game').click();page.locator('.story').wait_for();assert len(calls)==2
  # Preview works immediately after answers, without pretending to write remotely.
  phone=b.new_context(viewport={'width':390,'height':844},is_mobile=True,reduced_motion='reduce').new_page()
+ phone.route('**/config.js*',lambda r:r.fulfill(status=200,body="window.FORUM_CONFIG={housingEndpoint:'',analyticsEndpoint:'',contactUrl:''};",content_type='application/javascript'))
  phone.goto('http://127.0.0.1:8000');assert phone.evaluate('document.documentElement.scrollWidth<=innerWidth')
  phone.screenshot(path='/tmp/survey-first-phone.png',full_page=True)
  phone.locator('[name=preparation][value="5"]').check();phone.fill('#expert-question','Пока нет вопроса');phone.locator('#survey-submit').click();phone.locator('#start').wait_for()
