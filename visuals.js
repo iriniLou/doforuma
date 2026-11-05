@@ -11,17 +11,35 @@ window.itemDrawing = function(id, size=88) {
  return `<svg class="drawn-icon" width="${size}" height="${size}" viewBox="0 0 100 100" fill="none" stroke="#252622" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[id]||paths.folder}</svg>`;
 };
 window.GAME_ROLES = [
- {id:'team',title:'Архитектор общего дела',short:'Собираете людей, а не только план',item:'thread',color:'#93e479',text:'Вы оставляли людям пространство для собственных ролей и решений. В Вашей истории дело постепенно становилось общим.',question:'Как поддержать самостоятельность и оставаться рядом?'},
- {id:'start',title:'Режиссёр первого шага',short:'Превращаете «когда-нибудь» в пробу',item:'pencil',color:'#ff883e',text:'Вы выбирали конкретный шаг, с которого можно начать. Небольшая проба помогала проверить идею в действии.',question:'Как понять, что первая проба готова вырасти во что-то большее?'},
- {id:'plan',title:'Мастер плана Б',short:'Находите маршрут, когда всё меняется',item:'folder',color:'#63baff',text:'Вы искали работающий формат под реальные условия. Когда первоначальный план менялся, у Вас появлялся следующий ход.',question:'Что сохранить в плане, а чему позволить измениться?'},
- {id:'listen',title:'Ловец тихих голосов',short:'Замечаете тех, кто пока молчит',item:'lens',color:'#ff94cc',text:'Вы давали людям время и право участвовать по-разному. За первой репликой старались увидеть обстоятельства человека.',question:'Как услышать тех, кому неудобно говорить при всех?'},
- {id:'meaning',title:'Навигатор смысла',short:'Помните, ради чего всё затевалось',item:'compass',color:'#ffcc5b',text:'Вы возвращались к цели и проверяли, помогает ли ей выбранный формат. Это позволяло отделять главное от красивых дополнений.',question:'Как помочь группе сформулировать свой смысл общего дела?'},
- {id:'care',title:'Хранитель заряда',short:'Оставляете силы на продолжение',item:'thermos',color:'#93e479',text:'Вы выбирали посильную нагрузку и замечали границы. В Вашей истории забота о силах становилась частью общего плана.',question:'Как делиться ответственностью, сохраняя интерес к делу?'}
+ {id:'team',title:'Архитектор общего дела',short:'Помогаете ребятам договориться',item:'thread',color:'#93e479',text:'Вы предлагали ребятам самим выбирать задачи и договариваться друг с другом. К концу встречи часть вопросов они уже решали без Вас.',question:'Как поддержать самостоятельность и оставаться рядом?'},
+ {id:'start',title:'Режиссёр первого шага',short:'Предлагаете сначала попробовать',item:'pencil',color:'#ff883e',text:'Вы начинали с небольшой пробы: одной станции, короткой встречи или задания для нескольких человек. Так было проще понять, что стоит доработать.',question:'Как понять, что первая проба готова вырасти во что-то большее?'},
+ {id:'plan',title:'Мастер плана Б',short:'Знаете, как перестроить встречу',item:'folder',color:'#63baff',text:'Вы учитывали время, помещение и материалы. Если что-то не складывалось, выбирали другой порядок действий и объясняли его участникам.',question:'Что сохранить в плане, а чему позволить измениться?'},
+ {id:'listen',title:'Ловец тихих голосов',short:'Замечаете тех, кто пока молчит',item:'lens',color:'#ff94cc',text:'Вы уточняли, что человеку удобно, и давали время подумать. Благодаря этим разговорам удалось услышать тех, кто обычно молчит в общем чате.',question:'Как услышать тех, кому неудобно говорить при всех?'},
+ {id:'meaning',title:'Навигатор смысла',short:'Помогаете понять, зачем всё это',item:'compass',color:'#ffcc5b',text:'Вы спрашивали, чего ребята ждут от встречи. Когда предложений становилось слишком много, этот ответ помогал выбрать, что оставить.',question:'Как помочь группе сформулировать свой смысл общего дела?'},
+ {id:'care',title:'Хранитель заряда',short:'Замечаете, когда пора остановиться',item:'thermos',color:'#93e479',text:'Вы сокращали лишнюю подготовку, предлагали небольшие задачи и оставляли людям возможность отказаться. Так у участников и у Вас оставались силы на саму встречу.',question:'Как делиться ответственностью, сохраняя интерес к делу?'}
 ];
+// У ролей разное число подходящих действий. Сравниваем долю набранных баллов
+// от возможных для каждой роли, а не количество совпавших номеров кнопок.
 window.roleForDecisions = function(decisions) {
- const votes={team:0,start:0,plan:0,listen:0,meaning:0,care:0};
- const map=[['listen','start','meaning','plan'],['team','listen','listen'],['team','plan','plan','start'],['plan','team','care'],['team','plan','start','team','care'],['plan','care','team','meaning']];
- decisions.forEach((choice,i)=>{const id=map[i]?.[choice];if(id)votes[id]+=2;});
- const winner=Object.keys(votes).reduce((best,k)=>votes[k]>votes[best]?k:best,'team');
- return window.GAME_ROLES.find(r=>r.id===winner);
+ const scenes=window.GAME.scenes;
+ if(!Array.isArray(decisions)||decisions.length!==scenes.length||!decisions.every((choice,i)=>Number.isInteger(choice)&&!!scenes[i].choices[choice]))return null;
+ const ids=window.GAME_ROLES.map(role=>role.id),scores={},maximum={},strong={};
+ for(const id of ids){scores[id]=0;maximum[id]=0;strong[id]=0;}
+ scenes.forEach((scene,i)=>{
+  const selected=scene.choices[decisions[i]].profile||{};
+  for(const id of ids){
+   const value=selected[id]||0;scores[id]+=value;if(value>=3)strong[id]++;
+   maximum[id]+=Math.max(0,...scene.choices.map(choice=>choice.profile?.[id]||0));
+  }
+ });
+ function compare(a,b){
+  const ratio=scores[a]*maximum[b]-scores[b]*maximum[a];
+  if(ratio)return ratio;
+  if(strong[a]!==strong[b])return strong[a]-strong[b];
+  // При равном результате учитываем конкретные последние решения.
+  for(let i=scenes.length-1;i>=0;i--){const profile=scenes[i].choices[decisions[i]].profile||{};const difference=(profile[a]||0)-(profile[b]||0);if(difference)return difference;}
+  return a.localeCompare(b);
+ }
+ const winner=ids.reduce((best,id)=>compare(id,best)>0?id:best);
+ return window.GAME_ROLES.find(role=>role.id===winner);
 };

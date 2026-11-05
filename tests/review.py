@@ -27,7 +27,7 @@ with sync_playwright() as p:
  page.screenshot(path=str(OUT/'questions.png'),full_page=True)
  for i in range(6):page.locator('[data-choice="0"]').click();page.locator('#next').click()
  assert 'Архитектор общего дела' in page.locator('.postcard-svg').text_content()
- assert 'Собираете людей, а не только план' in page.locator('.postcard-svg').text_content()
+ assert 'Помогаете ребятам договориться' in page.locator('.postcard-svg').text_content()
  assert 'Как поддержать самостоятельность и оставаться рядом?' in page.locator('.postcard-svg').text_content()
  assert page.locator('#download-role').count()==0
  for el in page.locator('.swap-item').all():assert el.inner_text().strip()
