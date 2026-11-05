@@ -11,18 +11,21 @@ const HOUSING = {
 };
 function doGet(e) {
   try { return json_(lookup_(e && e.parameter || {})); }
-  catch (_) { return json_({ error: 'unavailable' }); }
+  catch (error) {const code={columns:'housing_columns',sheet:'housing_sheet',sheet_not_ready:'housing_source_not_ready'}[error.message]||'unavailable';return json_({error:code});}
 }
 function json_(body) { return ContentService.createTextOutput(JSON.stringify(body)).setMimeType(ContentService.MimeType.JSON); }
 function norm_(s) { return String(s || '').normalize('NFKC').toLowerCase().replace(/ё/g,'е').replace(/[^а-яa-z0-9]+/g,' ').trim(); }
 function clean_(s) { return String(s || '').replace(/\s+/g,' ').trim(); }
 function column_(headers, key, aliases) {
   const exact = HOUSING.columns[key];
-  if (exact) return headers.findIndex(h => norm_(h) === norm_(exact));
-  return headers.findIndex(h => aliases.some(a => norm_(h) === norm_(a)));
+  const headerKey=s=>norm_(s).replace(/ /g,'');
+  if (exact) return headers.findIndex(h => headerKey(h) === headerKey(exact));
+  return headers.findIndex(h => aliases.some(a => headerKey(h) === headerKey(a)));
 }
 function parseRows_(values) {
   if (!values.length) throw Error('empty');
+  const paired=parsePairedRows_(values);
+  if(paired!==null)return paired;
   // Допускаются заголовки в первых десяти строках, например после названия листа.
   let headerRow = -1, map;
   for (let row=0; row<Math.min(10,values.length); row++) {
@@ -41,7 +44,7 @@ function parseRows_(values) {
     if ((m.name>=0 || (m.surname>=0&&m.firstName>=0)) && (m.room>=0||m.roommate>=0)) { headerRow=row;map=m;break; }
   }
   if(headerRow<0)throw Error('columns');
-  const cell=(row,i)=>{const value=i>=0?clean_(row[i]):'';if(/^#(REF!|N\/A|ERROR!|VALUE!|DIV\/0!|NAME\?|NUM!|SPILL!|LOADING)/i.test(value))throw Error('sheet_not_ready');return value;};
+  const cell=housingCell_;
   return values.slice(headerRow+1).map((r,index)=>{
     const name=cell(r,map.name)||[cell(r,map.surname),cell(r,map.firstName),cell(r,map.patronymic)].filter(Boolean).join(' ');
     const surname=cell(r,map.surname)||name.split(' ')[0];
@@ -50,6 +53,36 @@ function parseRows_(values) {
     const id=Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,[sourceId,name,index].join('|'))).slice(0,24);
     return {id,name,surname,group:room?norm_(building)+'|'+norm_(room):'',roommate:map.roommate>=0?String(r[map.roommate]||'').trim():'',detail:cell(r,map.detail)};
   }).filter(p=>p.name&&p.surname);
+}
+function housingCell_(row,index) {
+  const value=index>=0?clean_(row[index]):'';
+  if(/^#(REF!|N\/A|ERROR!|VALUE!|DIV\/0!|NAME\?|NUM!|SPILL!|LOADING)/i.test(value))throw Error('sheet_not_ready');
+  return value;
+}
+function parsePairedRows_(values) {
+  for(let header=0;header<Math.min(10,values.length);header++) {
+    const h=values[header],sides=[1,2].map(n=>({
+      surname:column_(h,'surname'+n,['Фамилия '+n,'Фамилия участника '+n]),
+      firstName:column_(h,'firstName'+n,['Имя '+n,'Имя участника '+n]),
+      patronymic:column_(h,'patronymic'+n,['Отчество '+n,'Отчество участника '+n]),
+      region:column_(h,'region'+n,['Регион '+n,'Регион участника '+n])
+    }));
+    if(!sides.every(side=>side.surname>=0&&side.firstName>=0))continue;
+    const people=[];
+    values.slice(header+1).forEach((row,index)=>sides.forEach((side,position)=>{
+      const surname=housingCell_(row,side.surname),firstName=housingCell_(row,side.firstName);
+      if(!surname||!firstName)return;
+      const name=[surname,firstName,housingCell_(row,side.patronymic)].filter(Boolean).join(' ');
+      const id=Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,[name,index,position].join('|'))).slice(0,24);
+      // Одна строка = одна пара. Номера гостиничных комнат для этого формата не нужны.
+      people.push({id,name,surname,group:'pair:'+index,roommate:'',detail:'',region:housingCell_(row,side.region)});
+    }));
+    // Регион выводится только для полных тёзок, которым одного ФИО недостаточно для выбора.
+    const counts={};people.forEach(person=>{const key=norm_(person.name);counts[key]=(counts[key]||0)+1;});
+    people.forEach(person=>{if(counts[norm_(person.name)]>1)person.detail=person.region;});
+    return people;
+  }
+  return null;
 }
 function lookup_(params) {
   const surname=norm_(params.surname);

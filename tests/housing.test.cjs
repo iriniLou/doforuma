@@ -25,3 +25,18 @@ assert.equal(source,'1QFGb1Yl0Uf6su9vzRjUUvvm8SjhClIf0AMxZn3De3Hw');
 context.SpreadsheetApp.openById=()=>({getSheetByName:()=>null,getSheets:()=>[1,2].map(()=>({getDataRange:()=>({getDisplayValues:()=>rows})}))});
 assert.throws(()=>context.lookup_({surname:'Тестова'}),'Ambiguous sheet choice must fail');
 console.log('PASS: new spreadsheet ID, renamed sheet discovery, ambiguous-sheet rejection and formula errors.');
+// Actual organizer schema: each row holds two people, no separate room number.
+rows=[['Фамилия 1','Имя 1','Отчество 1','Регион 1','Фамилия 2','Имя 2','Отчество 2','Регион 2'],
+ ['Проверкова','Анна','Ивановна','Регион А','Соседова','Вера','Петровна','Регион Б'],
+ ['Проверкова','Елена','Сергеевна','Регион В','Другая','Мария','','Регион Г'],
+ ['Одна','Ольга','','Регион А','','','','']];
+context.SpreadsheetApp.openById=()=>({getSheetByName:()=>({getDataRange:()=>({getDisplayValues:()=>rows})})});
+let matches=context.lookup_({surname:'Проверкова'}).matches;assert.equal(matches.length,2);
+let first=context.lookup_({surname:'Проверкова',id:matches[0].id});assert.equal(first.roommates[0].name,'Соседова Вера Петровна');
+let second=context.lookup_({surname:'Соседова'}).matches[0];assert.equal(context.lookup_({surname:'Соседова',id:second.id}).roommates[0].name,'Проверкова Анна Ивановна');
+let solo=context.lookup_({surname:'Одна'}).matches[0];assert.equal(context.lookup_({surname:'Одна',id:solo.id}).roommates.length,0);
+rows[1][4]='Изменённая';assert.equal(context.lookup_({surname:'Проверкова',id:matches[0].id}).roommates[0].name,'Изменённая Вера Петровна');
+rows.push(['Новая','Нина','','Регион А','Проверкова','Анна','Ивановна','Регион Б']);
+matches=context.lookup_({surname:'Проверкова'}).matches;assert.equal(matches.length,3);assert.equal(matches[0].detail,'Регион А');assert.equal(matches[2].detail,'Регион Б');
+rows[0][0]='Фамилия1';rows[0][1]='Имя\u00a01';assert.equal(context.lookup_({surname:'Проверкова'}).matches.length,3);
+console.log('PASS: actual paired columns, both surname positions, same-surname selection, solo occupancy, changed rows, appended participants, regions only for exact namesakes.');
