@@ -51,7 +51,7 @@ with sync_playwright() as p:
  assert 'после подключения таблицы' not in page.locator('main').inner_text()
  page.screenshot(path=str(OUT/'housing.png'),full_page=True)
  # Single-file game is self-contained and keeps item drawings.
- offline=ctx.new_page();requests=[];offline.on('request',lambda r:requests.append(r.url));offline.goto('http://127.0.0.1:8000/dist/Важное-с-собой.html')
+ offline=b.new_context(reduced_motion='reduce').new_page();requests=[];offline.on('request',lambda r:requests.append(r.url));offline.goto('http://127.0.0.1:8000/dist/Важное-с-собой.html')
  offline.locator('#start').click();assert offline.locator('.item-icon svg').count()==6;assert len(requests)==1,requests
  assert not errors,errors
  print('PASS: visible labels in dark system theme; six SVG icons; consent-only anonymous POST; role export; tooltip focus; matching SVG/PNG postcard; long text layout; arrival footnote; offline build.')
