@@ -14,3 +14,14 @@ result=context.lookup_({surname:'тестова'});assert.equal(result.matches[0
 assert.equal(context.lookup_({surname:'ТЁСТОВА',id}).roommates.length,2);
 rows=[['Без заголовков']];assert.throws(()=>context.lookup_({surname:'Тестова'}));
 console.log('PASS: exact surname, ё/е, duplicates, separate hotels, fresh edits and appended rows, split names, multiline roommate names, no email leakage, invalid ID and missing schema.');
+
+rows=[['ФИО','Комната'],['#REF!','101']];assert.throws(()=>context.lookup_({surname:'Тестова'}),'Formula errors must not appear as people');
+
+rows=[['ФИО','Комната'],['Тестова Анна','101'],['Соседова Вера','101']];
+let source;
+context.SpreadsheetApp.openById=id=>{source=id;return {getSheetByName:()=>null,getSheets:()=>[{getDataRange:()=>({getDisplayValues:()=>rows})}]}};
+assert.equal(context.lookup_({surname:'Тестова'}).matches.length,1);
+assert.equal(source,'1QFGb1Yl0Uf6su9vzRjUUvvm8SjhClIf0AMxZn3De3Hw');
+context.SpreadsheetApp.openById=()=>({getSheetByName:()=>null,getSheets:()=>[1,2].map(()=>({getDataRange:()=>({getDisplayValues:()=>rows})}))});
+assert.throws(()=>context.lookup_({surname:'Тестова'}),'Ambiguous sheet choice must fail');
+console.log('PASS: new spreadsheet ID, renamed sheet discovery, ambiguous-sheet rejection and formula errors.');

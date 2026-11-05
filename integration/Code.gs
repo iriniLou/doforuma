@@ -4,7 +4,7 @@
  * Почты, телефоны и остальные столбцы никогда не возвращаются.
  */
 const HOUSING = {
-  spreadsheetId: '1ibR7COnJ6_TAQ7hgpH35j5f2dwG3OaFHUBfTJ6LY5a0',
+  spreadsheetId: '1QFGb1Yl0Uf6su9vzRjUUvvm8SjhClIf0AMxZn3De3Hw',
   sheetName: 'Расселение',
   // Если заголовок нестандартный, впишите точное название в нужное поле.
   columns: { name: '', surname: '', firstName: '', patronymic: '', room: '', building: '', roommate: '', id: '', detail: '' }
@@ -41,7 +41,7 @@ function parseRows_(values) {
     if ((m.name>=0 || (m.surname>=0&&m.firstName>=0)) && (m.room>=0||m.roommate>=0)) { headerRow=row;map=m;break; }
   }
   if(headerRow<0)throw Error('columns');
-  const cell=(row,i)=>i>=0?clean_(row[i]):'';
+  const cell=(row,i)=>{const value=i>=0?clean_(row[i]):'';if(/^#(REF!|N\/A|ERROR!|VALUE!|DIV\/0!|NAME\?|NUM!|SPILL!|LOADING)/i.test(value))throw Error('sheet_not_ready');return value;};
   return values.slice(headerRow+1).map((r,index)=>{
     const name=cell(r,map.name)||[cell(r,map.surname),cell(r,map.firstName),cell(r,map.patronymic)].filter(Boolean).join(' ');
     const surname=cell(r,map.surname)||name.split(' ')[0];
@@ -54,10 +54,18 @@ function parseRows_(values) {
 function lookup_(params) {
   const surname=norm_(params.surname);
   if(surname.length<2||surname.length>100)return {error:'invalid_query'};
-  const sheet=SpreadsheetApp.openById(HOUSING.spreadsheetId).getSheetByName(HOUSING.sheetName);
-  if(!sheet)throw Error('sheet');
+  const book=SpreadsheetApp.openById(HOUSING.spreadsheetId);
+  const sheet=book.getSheetByName(HOUSING.sheetName);
   // Без постоянного кэша: изменения строк и новые участники доступны на следующем запросе.
-  const rows=parseRows_(sheet.getDataRange().getDisplayValues());
+  // Если в новой книге лист переименован, выбираем единственный лист с подходящими столбцами.
+  let rows;
+  if(sheet)rows=parseRows_(sheet.getDataRange().getDisplayValues());
+  else {
+    const candidates=[];
+    for(const candidate of book.getSheets()){try{candidates.push(parseRows_(candidate.getDataRange().getDisplayValues()));}catch(_){}}
+    if(candidates.length!==1)throw Error('sheet');
+    rows=candidates[0];
+  }
   const matches=rows.filter(p=>norm_(p.surname)===surname);
   if(!params.id)return {status:'matches',matches:matches.map(p=>({id:p.id,name:p.name,...(p.detail?{detail:p.detail}:{})}))};
   const self=matches.find(p=>p.id===params.id);
@@ -69,6 +77,8 @@ function lookup_(params) {
 }
 
 /** Анонимные счётчики: только категория и число ответов, без отдельных строк людей. */
+// Статистика остаётся в исходной таблице, не изменяя синхронизируемый лист расселения.
+const STATISTICS_SPREADSHEET_ID = '1ibR7COnJ6_TAQ7hgpH35j5f2dwG3OaFHUBfTJ6LY5a0';
 const NEED_CATEGORIES = ['Свежего подхода','Времени и сил','Участия ребят','Уверенности в разговорах','Поддержки коллег'];
 function doPost(e) {
   let lock;
@@ -80,7 +90,7 @@ function doPost(e) {
     lock=LockService.getScriptLock();lock.waitLock(10000);
     const cache=CacheService.getScriptCache(),key='need-v1-'+data.token;
     if(cache.get(key))return json_({ok:true});
-    const book=SpreadsheetApp.openById(HOUSING.spreadsheetId);
+    const book=SpreadsheetApp.openById(STATISTICS_SPREADSHEET_ID);
     let sheet=book.getSheetByName('Статистика игры');
     if(!sheet){sheet=book.insertSheet('Статистика игры');sheet.getRange(1,1,6,2).setValues([['Запрос','Количество ответов'],...NEED_CATEGORIES.map(n=>[n,0])]);}
     const values=sheet.getDataRange().getValues();
