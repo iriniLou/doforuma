@@ -10,6 +10,8 @@ with sync_playwright() as p:
  page=context.new_page();errors=[]
  page.on('pageerror',lambda error:errors.append(str(error)))
  page.goto(BASE)
+ page.route('https://survey.example/**',lambda r:r.fulfill(status=200,content_type='application/json',body='{"ok":true}',headers={'Access-Control-Allow-Origin':'*'}))
+ page.evaluate("window.FORUM_CONFIG.analyticsEndpoint='https://survey.example/submit'")
  page.screenshot(path=str(OUT/'01-desktop.png'),full_page=True)
  page.locator('#start').click()
  assert page.locator('#begin').is_disabled()
@@ -19,7 +21,7 @@ with sync_playwright() as p:
  assert page.locator('.item.selected').count()==3
  page.select_option('#need','Времени и сил')
  page.screenshot(path=str(OUT/'02-pack.png'),full_page=True)
- page.locator('#begin').click()
+ page.locator('input[name="preparation"][value="0"]').check();page.fill('#expert-question','Как поддержать инициативу?');page.locator('#begin').click()
  # Lens changes the information budget; a fourth question remains unavailable.
  for n in range(3):page.locator(f'[data-question="{n}"]').click()
  assert page.locator('[data-question="3"]').is_disabled()
@@ -87,7 +89,9 @@ with sync_playwright() as p:
  no_overflow();mobile.locator('#start').click()
  for item in ['compass','thermos','folder']:mobile.locator(f'[data-item="{item}"]').click()
  no_overflow();mobile.screenshot(path=str(OUT/'06-mobile-pack.png'),full_page=True)
- mobile.locator('#begin').click();assert mobile.locator('[data-choice="3"]').count()==1
+ mobile.route('https://survey.example/**',lambda r:r.fulfill(status=200,content_type='application/json',body='{"ok":true}',headers={'Access-Control-Allow-Origin':'*'}))
+ mobile.evaluate("window.FORUM_CONFIG.analyticsEndpoint='https://survey.example/submit'")
+ mobile.locator('input[name="preparation"][value="5"]').check();mobile.fill('#expert-question','Пока нет вопроса');mobile.locator('#begin').click();mobile.locator('.story').wait_for();assert mobile.locator('[data-choice="3"]').count()==1
  no_overflow();mobile.screenshot(path=str(OUT/'07-mobile-story.png'),full_page=True)
  for i in range(6):
   choice=mobile.locator('[data-choice]').last

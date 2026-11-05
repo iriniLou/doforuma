@@ -1,0 +1,16 @@
+const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
+let rows=[],held=false,flushes=0,failWrite=false;
+const sheet={getRange:(r,c,h,w)=>({setValues:v=>{if(failWrite)throw Error('write');for(let i=0;i<v.length;i++){rows[r+i-1]??=[];for(let j=0;j<v[i].length;j++)rows[r+i-1][c+j-1]=v[i][j];}}}),getDataRange:()=>({getValues:()=>rows}),appendRow:r=>{if(failWrite)throw Error('write');rows.push(r)}};
+const ctx={ContentService:{MimeType:{JSON:'json'},createTextOutput:text=>({text,setMimeType(){return this;}})},SpreadsheetApp:{openById:()=>({getSheetByName:name=>name==='Ответы перед форумом'&&rows.length?sheet:null,insertSheet:name=>{assert.equal(name,'Ответы перед форумом');return sheet;}}),flush:()=>flushes++},LockService:{getScriptLock:()=>({waitLock:()=>{assert(!held);held=true;},releaseLock:()=>held=false})}};
+vm.createContext(ctx);vm.runInContext(fs.readFileSync('integration/Code.gs','utf8'),ctx);
+const send=data=>JSON.parse(ctx.doPost({postData:{contents:JSON.stringify(data)}}).text);
+const data={action:'survey',token:'a'.repeat(24),need:'Времени и сил',preparation:2,question:'Как обсуждать сложное?'};
+assert.deepEqual(send(data),{ok:true});assert.equal(rows.length,2);assert.equal(rows[1][3],data.question);assert.equal(flushes,1);
+assert.deepEqual(send(data),{ok:true});assert.equal(rows.length,2);
+assert.deepEqual(send({...data,question:'Изменённый вопрос'}),{ok:true});assert.equal(rows[1][3],'Изменённый вопрос');
+assert(send({...data,preparation:6}).error);assert(send({...data,question:'   '}).error);assert(send({...data,question:'x'.repeat(3001)}).error);assert(send({...data,need:'Другое'}).error);
+send({...data,token:'b'.repeat(24),question:'=IMPORTXML("url")'});assert.equal(rows[2][3][0],"'");
+const original=rows[0][1];rows[0][1]='Пользовательский заголовок';assert.equal(send(data).error,'survey_columns');assert.equal(rows[0][1],'Пользовательский заголовок');rows[0][1]=original;
+failWrite=true;assert.equal(send({...data,token:'c'.repeat(24)}).error,'unavailable');assert(!held);assert.equal(rows.length,3);
+assert(!JSON.stringify(rows).includes('ФИО'));assert(!JSON.stringify(rows).includes('email'));
+console.log('PASS: complete pre-game response, one row per token, updates, text-as-formula protection, validation, headers preserved, no success on failed write, flush before ACK.');

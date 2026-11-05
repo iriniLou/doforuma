@@ -84,8 +84,9 @@ function doPost(e) {
   let lock;
   try {
     const raw=e&&e.postData&&e.postData.contents||'';
-    if(raw.length>1000)return json_({error:'invalid_request'});
+    if(raw.length>20000)return json_({error:'invalid_request'});
     const data=JSON.parse(raw);
+    if(data.action==='survey')return recordSurvey_(data);
     if(data.action!=='need'||!NEED_CATEGORIES.includes(data.need)||!/^[-a-zA-Z0-9]{20,64}$/.test(data.token||''))return json_({error:'invalid_request'});
     lock=LockService.getScriptLock();lock.waitLock(10000);
     const cache=CacheService.getScriptCache(),key='need-v1-'+data.token;
@@ -100,4 +101,37 @@ function doPost(e) {
     return json_({ok:true});
   } catch (_) { return json_({error:'unavailable'}); }
   finally {if(lock)lock.releaseLock();}
+}
+
+
+const PREPARATION_OPTIONS = [
+ 'Заранее изучил(а) материалы, адаптировал(а) сценарий под особенности и интересы своего класса.',
+ 'Заранее ознакомился(лась) со сценарием и провёл(а) занятие практически без изменений.',
+ 'Просмотрел(а) материалы в день проведения занятия и выбрал(а) необходимое.',
+ 'Ознакомился(лась) с материалами непосредственно перед началом занятия или уже в процессе его проведения.',
+ 'Подготовил(а) собственный вариант занятия, практически не используя предложенный сценарий.',
+ 'В настоящее время лично не провожу занятия «Разговоры о важном».'
+];
+const SURVEY_HEADERS = ['Код ответа','Чего не хватает','Подготовка к занятию','Вопрос экспертам'];
+function recordSurvey_(data) {
+  if(!NEED_CATEGORIES.includes(data.need)||!Number.isInteger(data.preparation)||data.preparation<0||data.preparation>=PREPARATION_OPTIONS.length||typeof data.question!=='string'||!data.question.trim()||data.question.length>3000||!/^[-a-zA-Z0-9]{20,64}$/.test(data.token||''))return json_({error:'invalid_request'});
+  let lock,held=false;
+  try {
+    lock=LockService.getScriptLock();lock.waitLock(10000);held=true;
+    const book=SpreadsheetApp.openById(STATISTICS_SPREADSHEET_ID);
+    let sheet=book.getSheetByName('Ответы перед форумом');
+    if(!sheet){sheet=book.insertSheet('Ответы перед форумом');sheet.getRange(1,1,1,4).setValues([SURVEY_HEADERS]);}
+    const rows=sheet.getDataRange().getValues();
+    // Существующие названия столбцов не меняем. Несовпадение — ошибка, а не перезапись.
+    if(!rows[0]||!SURVEY_HEADERS.every((name,i)=>rows[0][i]===name))return json_({error:'survey_columns'});
+    const question=data.question.trim();
+    const safeQuestion=/^\s*[=+@-]/.test(question)?"'"+question:question;
+    const row=[data.token,data.need,PREPARATION_OPTIONS[data.preparation],safeQuestion];
+    const index=rows.findIndex((r,i)=>i>0&&String(r[0])===data.token);
+    if(index>0)sheet.getRange(index+1,1,1,4).setValues([row]);
+    else sheet.appendRow(row);
+    SpreadsheetApp.flush();
+    return json_({ok:true});
+  } catch (_) {return json_({error:'unavailable'});}
+  finally {if(held)lock.releaseLock();}
 }

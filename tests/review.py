@@ -13,12 +13,12 @@ with sync_playwright() as p:
  calls=[]
  def stats(route):
   payload=json.loads(route.request.post_data);calls.append(payload)
-  assert set(payload)=={'action','need','token'}
+  assert set(payload)=={'action','need','token','preparation','question'}
   route.fulfill(status=200,body='{"ok":true}',headers={'Access-Control-Allow-Origin':'*'},content_type='application/json')
  page.route('https://statistics.example/**',stats)
  page.evaluate("window.FORUM_CONFIG.analyticsEndpoint='https://statistics.example/count'")
- assert page.locator('#stats-consent').count()==0;assert 'Ваш выбор будет анонимно учтён' in page.locator('main').inner_text();page.select_option('#need','Поддержки коллег');page.locator('#begin').click()
- page.wait_for_function("JSON.parse(localStorage.getItem('vazhnoe-game-v1')).statsSent === true")
+ assert page.locator('#stats-consent').count()==0;assert 'Ваш выбор будет анонимно учтён' in page.locator('main').inner_text();page.select_option('#need','Поддержки коллег');page.locator('input[name="preparation"][value="2"]').check();page.fill('#expert-question','Как вовлечь молчащих?');page.locator('#begin').click()
+ page.wait_for_function("JSON.parse(localStorage.getItem('vazhnoe-game-v1')).surveySaved")
  assert len(calls)==1 and calls[0]['need']=='Поддержки коллег'
  for q in page.locator('.question').all():
   assert q.inner_text().strip();assert q.evaluate('(e)=>getComputedStyle(e).color')=='rgb(37, 38, 34)'
