@@ -1,7 +1,7 @@
 const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
-let rows=[],held=false,flushes=0,failWrite=false;
-const sheet={getRange:(r,c,h,w)=>({setValues:v=>{if(failWrite)throw Error('write');for(let i=0;i<v.length;i++){rows[r+i-1]??=[];for(let j=0;j<v[i].length;j++)rows[r+i-1][c+j-1]=v[i][j];}}}),getDataRange:()=>({getValues:()=>rows}),appendRow:r=>{if(failWrite)throw Error('write');rows.push(r)}};
-const ctx={ContentService:{MimeType:{JSON:'json'},createTextOutput:text=>({text,setMimeType(){return this;}})},SpreadsheetApp:{openById:()=>({getSheetByName:name=>name==='Ответы перед форумом'&&rows.length?sheet:null,insertSheet:name=>{assert.equal(name,'Ответы перед форумом');return sheet;}}),flush:()=>flushes++},LockService:{getScriptLock:()=>({waitLock:()=>{assert(!held);held=true;},releaseLock:()=>held=false})}};
+let rows=[],held=false,flushes=0,failWrite=false,failOpen=false,failRead=false,failLock=false,failFlush=false,canEdit=true;
+const sheet={getRange:(r,c,h,w)=>({canEdit:()=>canEdit,setValues:v=>{if(failWrite)throw Error('write');for(let i=0;i<v.length;i++){rows[r+i-1]??=[];for(let j=0;j<v[i].length;j++)rows[r+i-1][c+j-1]=v[i][j];}}}),getDataRange:()=>({getValues:()=>{if(failRead)throw Error('private read detail');return rows;}}),appendRow:r=>{if(failWrite)throw Error('write');rows.push(r)}};
+const ctx={ContentService:{MimeType:{JSON:'json'},createTextOutput:text=>({text,setMimeType(){return this;}})},SpreadsheetApp:{openById:()=>{if(failOpen)throw Error('private access detail');return ({getSheetByName:name=>name==='Ответы перед форумом'&&rows.length?sheet:null,insertSheet:name=>{assert.equal(name,'Ответы перед форумом');return sheet;}});},flush:()=>{if(failFlush)throw Error('private flush detail');flushes++;}},LockService:{getScriptLock:()=>({waitLock:()=>{if(failLock)throw Error('private lock detail');assert(!held);held=true;},releaseLock:()=>held=false})}};
 vm.createContext(ctx);vm.runInContext(fs.readFileSync('integration/Code.gs','utf8'),ctx);
 const send=data=>JSON.parse(ctx.doPost({postData:{contents:JSON.stringify(data)}}).text);
 const data={action:'survey',token:'a'.repeat(24),need:'Времени и сил',preparation:2,question:'Как обсуждать сложное?'};
@@ -13,6 +13,20 @@ send({...data,token:'b'.repeat(24),question:'=IMPORTXML("url")'});assert.equal(r
 assert(send({...data,preparation:6}).error);assert(send({...data,preparation:6,preparationOther:'   '}).error);assert(send({...data,preparation:6,preparationOther:'x'.repeat(1501)}).error);
 assert.deepEqual(send({...data,preparation:6,preparationOther:'Обсудила тему с детьми заранее',question:'-'}),{ok:true});assert.equal(rows[1][2],'Свой вариант: Обсудила тему с детьми заранее');assert.equal(rows[1][3],"'-");
 const original=rows[0][1];rows[0][1]='Пользовательский заголовок';assert.equal(send(data).error,'survey_columns');assert.equal(rows[0][1],'Пользовательский заголовок');rows[0][1]=original;
-failWrite=true;assert.equal(send({...data,token:'c'.repeat(24)}).error,'unavailable');assert(!held);assert.equal(rows.length,3);
+failWrite=true;assert.equal(send({...data,token:'c'.repeat(24)}).error,'survey_write');assert(!held);assert.equal(rows.length,3);
 assert(!JSON.stringify(rows).includes('ФИО'));assert(!JSON.stringify(rows).includes('email'));
 console.log('PASS: complete pre-game response, one row per token, updates, text-as-formula protection, validation, headers preserved, no success on failed write, flush before ACK.');
+
+failWrite=false;
+failOpen=true;assert.deepEqual(send(data),{error:'survey_workbook'});assert(!held);failOpen=false;
+failRead=true;assert.deepEqual(send(data),{error:'survey_read'});assert(!held);failRead=false;
+failLock=true;assert.deepEqual(send(data),{error:'survey_busy'});assert(!held);failLock=false;
+const countBefore=rows.length;
+failFlush=true;assert.deepEqual(send({...data,token:'d'.repeat(24)}),{error:'survey_flush'});assert(!held);failFlush=false;
+assert.deepEqual(send({...data,token:'d'.repeat(24)}),{ok:true});assert.equal(rows.length,countBefore+1);
+// A completely empty existing sheet can be initialized without renaming any existing column.
+rows=[['','','','']];assert.deepEqual(send(data),{ok:true});assert.equal(rows[0][0],'Код ответа');assert.equal(rows.length,2);
+const previousRows=JSON.stringify(rows);ctx.prepareSurvey();assert.equal(JSON.stringify(rows),previousRows);
+canEdit=false;assert.throws(()=>ctx.prepareSurvey(),/нет права записи/);assert.equal(JSON.stringify(rows),previousRows);canEdit=true;
+rows[0][0]='Другой заголовок';assert.throws(()=>ctx.prepareSurvey(),/заголовки/);assert.equal(rows[0][0],'Другой заголовок');
+console.log('PASS: stage-specific errors for access, read, write, lock and flush; retry after uncertain write without duplicate; blank-sheet initialization; manual setup preserves records and reports protected range.');

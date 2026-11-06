@@ -150,13 +150,20 @@ const SURVEY_HEADERS = ['Код ответа','Чего не хватает','П
 function recordSurvey_(data) {
   if(!NEED_CATEGORIES.includes(data.need)||!Number.isInteger(data.preparation)||data.preparation<0||data.preparation>=PREPARATION_OPTIONS.length||typeof data.question!=='string'||!data.question.trim()||data.question.length>3000||!/^[-a-zA-Z0-9]{20,64}$/.test(data.token||''))return json_({error:'invalid_request'});
   if(data.preparation===6&&(typeof data.preparationOther!=='string'||!data.preparationOther.trim()||data.preparationOther.length>1500))return json_({error:'invalid_request'});
-  let lock,held=false;
+  let lock,held=false,stage='survey_busy';
   try {
     lock=LockService.getScriptLock();lock.waitLock(10000);held=true;
+    stage='survey_workbook';
     const book=SpreadsheetApp.openById(STATISTICS_SPREADSHEET_ID);
+    stage='survey_sheet';
     let sheet=book.getSheetByName('Ответы перед форумом');
-    if(!sheet){sheet=book.insertSheet('Ответы перед форумом');sheet.getRange(1,1,1,4).setValues([SURVEY_HEADERS]);}
-    const rows=sheet.getDataRange().getValues();
+    if(!sheet){stage='survey_sheet_create';sheet=book.insertSheet('Ответы перед форумом');}
+    stage='survey_read';
+    let rows=sheet.getDataRange().getValues();
+    // Инициализируем только полностью пустой лист; существующие заголовки не переписываем.
+    if(rows.every(row=>row.every(value=>value===''||value===null))){
+      stage='survey_write';sheet.getRange(1,1,1,4).setValues([SURVEY_HEADERS]);rows=[SURVEY_HEADERS];
+    }
     // Существующие названия столбцов не меняем. Несовпадение — ошибка, а не перезапись.
     if(!rows[0]||!SURVEY_HEADERS.every((name,i)=>rows[0][i]===name))return json_({error:'survey_columns'});
     const question=data.question.trim();
@@ -164,10 +171,34 @@ function recordSurvey_(data) {
     const preparation=data.preparation===6?'Свой вариант: '+data.preparationOther.trim():PREPARATION_OPTIONS[data.preparation];
     const row=[data.token,data.need,preparation,safeQuestion];
     const index=rows.findIndex((r,i)=>i>0&&String(r[0])===data.token);
+    stage='survey_write';
     if(index>0)sheet.getRange(index+1,1,1,4).setValues([row]);
     else sheet.appendRow(row);
-    SpreadsheetApp.flush();
+    stage='survey_flush';SpreadsheetApp.flush();
     return json_({ok:true});
-  } catch (_) {return json_({error:'unavailable'});}
+  } catch (error) {
+    // Подробности Google видны только владельцу проекта в журнале, без тела анкеты.
+    console.error('Survey failure at '+stage+': '+String(error && error.message || error));
+    return json_({error:stage});
+  }
   finally {if(held)lock.releaseLock();}
+}
+
+/** Запустите вручную из редактора Apps Script, чтобы проверить доступ и подготовить пустой лист.
+ * Анкеты и тестовые ответы не добавляются; существующие заголовки и строки не меняются.
+ */
+function prepareSurvey() {
+  const book=SpreadsheetApp.openById(STATISTICS_SPREADSHEET_ID);
+  let sheet=book.getSheetByName('Ответы перед форумом');
+  if(!sheet)sheet=book.insertSheet('Ответы перед форумом');
+  const rows=sheet.getDataRange().getValues();
+  if(rows.every(row=>row.every(value=>value===''||value===null))) {
+    sheet.getRange(1,1,1,4).setValues([SURVEY_HEADERS]);SpreadsheetApp.flush();
+  } else if(!rows[0]||!SURVEY_HEADERS.every((name,i)=>rows[0][i]===name)) {
+    throw Error('В листе «Ответы перед форумом» другие заголовки. Они не изменены. Проверьте выбранную таблицу.');
+  }
+  if(!sheet.getRange(2,1,1,4).canEdit()) {
+    throw Error('У аккаунта, выполняющего скрипт, нет права записи в A2:D2 листа «Ответы перед форумом». Проверьте права редактора и защиту листа.');
+  }
+  console.log('Проверка завершена: таблица открывается, заголовки верны, A2:D2 доступны для записи. Тестовые анкеты не добавлены. Опубликуйте новую версию существующего веб-приложения с выполнением от Вашего имени и доступом «Все».');
 }
