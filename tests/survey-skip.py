@@ -49,6 +49,14 @@ with sync_playwright() as p:
  assert page.locator('#return-survey').count()==0
  page.locator('#again-home').click()
  assert page.evaluate("JSON.parse(localStorage.getItem('forum-short-quiz-v1')).quizNeed")=='Времени и сил'
+ # A direct URL must also work when browser storage is unavailable.
+ isolated=b.new_context()
+ isolated.add_init_script("Storage.prototype.getItem=()=>{throw new Error('blocked storage')};Storage.prototype.setItem=()=>{throw new Error('blocked storage')}")
+ direct=isolated.new_page();direct.goto(URL+'/?skip-survey=1')
+ direct.locator('#start').wait_for();direct.locator('#start').click()
+ assert 'Вопрос 1 из 5' in direct.locator('main').inner_text()
+ direct.reload();direct.locator('#start').wait_for()
+ isolated.close()
  assert not errors,errors
  b.close()
-print('PASS: empty survey skip without POST; housing/quiz/PNG access; neutral result without invented need; persisted skip; failed survey draft retained; later retry uses same token; initial need counted when answered.')
+print('PASS: empty survey skip without POST; housing/quiz/PNG access; neutral result without invented need; persisted skip; failed survey draft retained; later retry uses same token; initial need counted when answered; direct link works with blocked storage.')
